@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>义乌市飞纹贸易 - 进销存管理系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #43a047;
+            --primary-dark: #2e7d32;
+            --primary-light: #e8f5e9;
+            --bg: #f1f8f4;
+            --white: #ffffff;
+            --text: #333;
+            --text-gray: #666;
+            --danger: #e53935;
+            --shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); line-height: 1.6; }
+
+        /* 顶部导航 */
+        header {
+            background: var(--primary);
+            color: var(--white);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .nav-wrap {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .logo { font-weight: bold; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; }
+        .nav-links { display: flex; gap: 5px; }
+        .nav-btn {
+            color: rgba(255,255,255,0.85);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            background: none;
+        }
+        .nav-btn:hover, .nav-btn.active { background: rgba(255,255,255,0.25); color: white; }
+
+        /* 主内容 */
+        .container { max-width: 1200px; margin: 25px auto; padding: 0 15px; display: none; }
+        .container.active { display: block; }
+
+        /* 卡片 */
+        .card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--primary-light);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .card-title { font-size: 1.15rem; color: var(--primary-dark); font-weight: 600; }
+        
+        .btn-refresh { padding: 6px 12px; font-size: 0.85rem; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; }
+        .btn-refresh:hover { background: #f5f5f5; }
+
+        /* 表单 */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+        .form-group label { display: block; margin-bottom: 6px; font-size: 0.9rem; color: var(--text-gray); font-weight: 500; }
+        .form-control {
+            width: 100%; padding: 10px 12px; border: 1px solid #ddd;
+            border-radius: 6px; font-size: 1rem; transition: border-color 0.2s;
+        }
+        .form-control:focus { outline: none; border-color: var(--primary); }
+        .btn {
+            padding: 10px 20px; border: none; border-radius: 6px; font-size: 0.95rem;
+            cursor: pointer; transition: opacity 0.2s; display: inline-flex; align-items: center; gap: 5px;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: var(--primary); color: white; width: 100%; margin-top: 10px; justify-content: center; }
+        .btn-sm { padding: 5px 10px; font-size: 0.85rem; }
+        .btn-edit { background: #fff3e0; color: #e65100; }
+        .btn-del { background: #ffebee; color: var(--danger); }
+
+        /* 表格 */
+        .table-container { overflow-x: auto; border: 1px solid #eee; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #f5f5f5; }
+        th { background: var(--primary-light); color: var(--primary-dark); font-weight: 600; font-size: 0.9rem; }
+        tr:hover { background-color: #fafafa; }
+        .warning-row { color: var(--danger); font-weight: 600; }
+        .badge { padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; background: #eee; }
+        .badge-danger { background: #ffcdd2; color: #b71c1c; }
+        .small-text { font-size: 0.8rem; color: #666; }
+
+        /* 图表筛选 */
+        .filters { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+        .filters select { min-width: 150px; }
+        .chart-wrap { position: relative; height: 350px; width: 100%; }
+
+        /* 模态框 */
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0;
+            width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);
+            justify-content: center; align-items: center; padding: 15px;
+        }
+        .modal.show { display: flex; }
+        .modal-content {
+            background: white; border-radius: 12px; width: 100%; max-width: 600px;
+            padding: 25px; animation: slideDown 0.3s ease;
+        }
+        @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .close-btn { font-size: 1.5rem; cursor: pointer; color: #999; border: none; background: none; }
+
+        /* 加载提示 */
+        .loading { text-align: center; padding: 20px; color: #666; }
+
+        /* 手机适配 */
+        @media (max-width: 768px) {
+            .nav-wrap { flex-direction: column; height: auto; padding: 10px; }
+            .logo { margin-bottom: 10px; }
+            .nav-links { width: 100%; justify-content: space-between; }
+            .nav-btn { padding: 6px 10px; font-size: 0.8rem; }
+            .card { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="nav-wrap">
+        <div class="logo">🚢 飞纹贸易进销存</div>
+        <div class="nav-links">
+            <button class="nav-btn active" onclick="switchTab('stock')">库存管理</button>
+            <button class="nav-btn" onclick="switchTab('inbound')">商品入库</button>
+            <button class="nav-btn" onclick="switchTab('outbound')">商品出库</button>
+            <button class="nav-btn" onclick="switchTab('stats')">销量统计</button>
+        </div>
+    </div>
+</header>
+
+<!-- 库存管理页 -->
+<div id="page-stock" class="container active">
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">📊 当前库存与预警</div>
+            <button class="btn-refresh" onclick="loadData()">🔄 刷新数据</button>
+        </div>
+        <p style="font-size:0.85rem; color:#666; margin-bottom:15px;">* 红色预警：总库存低于近 2 个月销量</p>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>商品名称</th>
+                        <th>库存分布</th>
+                        <th>总库存</th>
+                        <th>近2月销量</th>
+                        <th>状态</th>
+                    </tr>
+                </thead>
+                <tbody id="stock-list"><tr><td colspan="6" class="loading">加载中...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 入库页 -->
+<div id="page-inbound" class="container">
+    <div class="card">
+        <div class="card-header"><div class="card-title">📦 商品入库登记</div></div>
+        <div class="form-grid">
+            <div class="form-group"><label>仓库所在国家</label><input type="text" id="in-country" class="form-control" placeholder="中国"></div>
+            <div class="form-group"><label>仓库名称</label><input type="text" id="in-wh" class="form-control" placeholder="义乌仓"></div>
+            <div class="form-group"><label>商品名称</label><input type="text" id="in-name" class="form-control" placeholder="产品名称"></div>
+            <div class="form-group"><label>SKU</label><input type="text" id="in-sku" class="form-control" placeholder="FW-001"></div>
+            <div class="form-group"><label>数量</label><input type="number" id="in-qty" class="form-control" placeholder="0"></div>
+            <div class="form-group"><label>单价</label><input type="number" step="0.01" id="in-price" class="form-control" placeholder="0.00"></div>
+            <div class="form-group"><label>日期</label><input type="date" id="in-date" class="form-control"></div>
+        </div>
+        <button class="btn btn-primary" onclick="saveInbound()">✅ 确认入库</button>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><div class="card-title">📜 入库记录</div></div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>国家</th>
+                        <th>仓库</th>
+                        <th>SKU</th>
+                        <th>商品</th>
+                        <th>数量</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="inbound-list"><tr><td colspan="7" class="loading">加载中...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 出库页 -->
+<div id="page-outbound" class="container">
+    <div class="card">
+        <div class="card-header"><div class="card-title">🚚 商品出库登记</div></div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>1. 选择商品SKU</label>
+                <select id="out-sku" class="form-control" onchange="updateWarehouseOptions()">
+                    <option value="">请先入库商品...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>2. 选择出库仓库</label>
+                <select id="out-wh" class="form-control">
+                    <option value="">请先选择SKU...</option>
+                </select>
+            </div>
+            <div class="form-group"><label>3. 出库链接/渠道</label><input type="text" id="out-link" class="form-control" placeholder="Amazon/Shopify"></div>
+            <div class="form-group"><label>4. 出库数量</label><input type="number" id="out-qty" class="form-control" placeholder="0"></div>
+            <div class="form-group"><label>5. 日期</label><input type="date" id="out-date" class="form-control"></div>
+        </div>
+        <button class="btn btn-primary" onclick="saveOutbound()">✅ 确认出库</button>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><div class="card-title">📜 出库记录</div></div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>SKU</th>
+                        <th>出库仓库</th>
+                        <th>渠道</th>
+                        <th>数量</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="outbound-list"><tr><td colspan="6" class="loading">加载中...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 统计页 -->
+<div id="page-stats" class="container">
+    <div class="card">
+        <div class="card-header"><div class="card-title">📈 销量统计分析</div></div>
+        <div class="filters">
+            <select id="filter-sku" class="form-control" onchange="renderChart()"><option value="all">全部SKU</option></select>
+            <select id="filter-link" class="form-control" onchange="renderChart()"><option value="all">全部渠道</option></select>
+            <select id="filter-time" class="form-control" onchange="renderChart()"><option value="30">近30天</option><option value="60">近60天</option><option value="180">近180天</option></select>
+        </div>
+        <div class="chart-wrap"><canvas id="salesChart"></canvas></div>
+    </div>
+</div>
+
+<!-- 编辑弹窗 -->
+<div id="edit-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>编辑记录</h3>
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+        </div>
+        <div id="modal-body"></div>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="btn" style="flex:1; background:#eee;" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" style="flex:1; margin:0;" onclick="confirmEdit()">保存修改</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let appData = { inbound: [], outbound: [] };
+    let currentEditItem = null;
+    let myChart = null;
+
+    // 初始化日期
+    document.getElementById('in-date').valueAsDate = new Date();
+    document.getElementById('out-date').valueAsDate = new Date();
+
+    // ========== 核心API请求 ==========
+    // 加载所有数据
+    async function loadData() {
+        try {
+            const res = await fetch('/api/data');
+            appData = await res.json();
+            refreshUI();
+        } catch (err) {
+            alert('数据加载失败，请检查网络');
+            console.error(err);
+        }
+    }
+
+    // 新增入库
+    async function saveInbound() {
+        const item = {
+            country: document.getElementById('in-country').value,
+            wh: document.getElementById('in-wh').value,
+            name: document.getElementById('in-name').value,
+            sku: document.getElementById('in-sku').value,
+            qty: parseInt(document.getElementById('in-qty').value) || 0,
+            price: parseFloat(document.getElementById('in-price').value) || 0,
+            date: document.getElementById('in-date').value
+        };
+        if(!item.sku || !item.qty) return alert("请填写SKU和数量！");
+        
+        try {
+            await fetch('/api/inbound', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(item)
+            });
+            alert('入库成功！');
+            document.getElementById('in-qty').value = '';
+            loadData();
+        } catch (err) {
+            alert('入库失败');
+            console.error(err);
+        }
+    }
+
+    // 新增出库
+    async function saveOutbound() {
+        const sku = document.getElementById('out-sku').value;
+        const whKey = document.getElementById('out-wh').value;
+        const qty = parseInt(document.getElementById('out-qty').value) || 0;
+        
+        if(!sku || !whKey || !qty) return alert("请填写完整信息！");
+        const [country, wh] = whKey.split('-');
+
+        // 校验库存
+        const whStock = getWarehouseStockForSku(sku);
+        if(qty > whStock[whKey]) return alert(`库存不足！当前库存: ${whStock[whKey]}`);
+
+        try {
+            await fetch('/api/outbound', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sku, country, wh, link: document.getElementById('out-link').value, qty, date: document.getElementById('out-date').value })
+            });
+            alert('出库成功！');
+            document.getElementById('out-qty').value = '';
+            loadData();
+            updateWarehouseOptions();
+        } catch (err) {
+            alert('出库失败');
+            console.error(err);
+        }
+    }
+
+    // 删除记录
+    async function deleteItem(type, id) {
+        if(!confirm('确定要删除这条记录吗？')) return;
+        try {
+            await fetch(`/api/${type}/${id}`, { method: 'DELETE' });
+            loadData();
+        } catch (err) {
+            alert('删除失败');
+            console.error(err);
+        }
+    }
+
+    // 编辑记录
+    function openEditModal(type, id) {
+        currentEditItem = { type, id };
+        const body = document.getElementById('modal-body');
+        let item;
+
+        if(type === 'inbound') {
+            item = appData.inbound.find(i => i.id === id);
+            body.innerHTML = `
+                <div class="form-grid">
+                    <div class="form-group"><label>国家</label><input type="text" id="m-country" class="form-control" value="${item.country}"></div>
+                    <div class="form-group"><label>仓库</label><input type="text" id="m-wh" class="form-control" value="${item.wh}"></div>
+                    <div class="form-group"><label>商品名</label><input type="text" id="m-name" class="form-control" value="${item.name}"></div>
+                    <div class="form-group"><label>SKU</label><input type="text" id="m-sku" class="form-control" value="${item.sku}"></div>
+                    <div class="form-group"><label>数量</label><input type="number" id="m-qty" class="form-control" value="${item.qty}"></div>
+                    <div class="form-group"><label>日期</label><input type="date" id="m-date" class="form-control" value="${item.date}"></div>
+                </div>
+            `;
+        } else {
+            item = appData.outbound.find(o => o.id === id);
+            body.innerHTML = `
+                <div class="form-grid">
+                    <div class="form-group"><label>SKU</label><input type="text" id="m-sku" class="form-control" value="${item.sku}"></div>
+                    <div class="form-group"><label>国家</label><input type="text" id="m-country" class="form-control" value="${item.country}"></div>
+                    <div class="form-group"><label>仓库</label><input type="text" id="m-wh" class="form-control" value="${item.wh}"></div>
+                    <div class="form-group"><label>渠道</label><input type="text" id="m-link" class="form-control" value="${item.link}"></div>
+                    <div class="form-group"><label>数量</label><input type="number" id="m-qty" class="form-control" value="${item.qty}"></div>
+                    <div class="form-group"><label>日期</label><input type="date" id="m-date" class="form-control" value="${item.date}"></div>
+                </div>
+            `;
+        }
+        document.getElementById('edit-modal').classList.add('show');
+    }
+
+    async function confirmEdit() {
+        const { type, id } = currentEditItem;
+        let data = {};
+
+        if(type === 'inbound') {
+            data = {
+                country: document.getElementById('m-country').value,
+                wh: document.getElementById('m-wh').value,
+                name: document.getElementById('m-name').value,
+                sku: document.getElementById('m-sku').value,
+                qty: parseInt(document.getElementById('m-qty').value),
+                date: document.getElementById('m-date').value
+            };
+        } else {
+            data = {
+                sku: document.getElementById('m-sku').value,
+                country: document.getElementById('m-country').value,
+                wh: document.getElementById('m-wh').value,
+                link: document.getElementById('m-link').value,
+                qty: parseInt(document.getElementById('m-qty').value),
+                date: document.getElementById('m-date').value
+            };
+        }
+
+        try {
+            await fetch(`/api/${type}/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            closeModal();
+            loadData();
+        } catch (err) {
+            alert('修改失败');
+            console.error(err);
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('edit-modal').classList.remove('show');
+    }
+
+    // ========== 工具函数 ==========
+    function getWarehouseStockForSku(sku) {
+        let stockMap = {};
+        appData.inbound.filter(i => i.sku === sku).forEach(i => {
+            const key = `${i.country}-${i.wh}`;
+            stockMap[key] = (stockMap[key] || 0) + i.qty;
+        });
+        appData.outbound.filter(o => o.sku === sku).forEach(o => {
+            const key = `${o.country}-${o.wh}`;
+            if(stockMap[key]) stockMap[key] -= o.qty;
+        });
+        return stockMap;
+    }
+
+    function updateWarehouseOptions() {
+        const sku = document.getElementById('out-sku').value;
+        const whSelect = document.getElementById('out-wh');
+        if(!sku) { whSelect.innerHTML = '<option value="">请先选择SKU...</option>'; return; }
+
+        const whStock = getWarehouseStockForSku(sku);
+        let options = '<option value="">请选择出库仓库</option>';
+        for (let key in whStock) {
+            if(whStock[key] > 0) {
+                options += `<option value="${key}">${key} (库存: ${whStock[key]})</option>`;
+            } else {
+                options += `<option value="${key}" disabled>${key} (库存: 0)</option>`;
+            }
+        }
+        whSelect.innerHTML = options;
+    }
+
+    // ========== 界面渲染 ==========
+    function refreshUI() {
+        renderStockList();
+        renderInboundList();
+        renderOutboundList();
+        updateDropdowns();
+        if(myChart) renderChart();
+    }
+
+    function renderStockList() {
+        let skus = [...new Set(appData.inbound.map(i => i.sku))];
+        let meta = {};
+        appData.inbound.forEach(i => { if(!meta[i.sku]) meta[i.sku] = i.name; });
+        const m2 = new Date(); m2.setMonth(m2.getMonth()-2);
+
+        let html = '';
+        skus.forEach(sku => {
+            const whStock = getWarehouseStockForSku(sku);
+            const whText = Object.keys(whStock).map(k => `${k}: ${whStock[k]}`).join('<br>');
+            const totalStock = Object.values(whStock).reduce((a,b)=>a+b,0);
+            const sales = appData.outbound.filter(o => o.sku===sku && new Date(o.date)>m2).reduce((a,b)=>a+b.qty,0);
+            const isWarn = totalStock < sales;
+            
+            html += `
+                <tr class="${isWarn ? 'warning-row' : ''}">
+                    <td><strong>${sku}</strong></td>
+                    <td>${meta[sku]}</td>
+                    <td class="small-text">${whText}</td>
+                    <td>${totalStock}</td>
+                    <td>${sales}</td>
+                    <td>${isWarn ? '<span class="badge badge-danger">需补货</span>' : '<span class="badge">正常</span>'}</td>
+                </tr>
+            `;
+        });
+        document.getElementById('stock-list').innerHTML = html || '<tr><td colspan="6" style="text-align:center; color:#999; padding:20px;">暂无数据</td></tr>';
+    }
+
+    function renderInboundList() {
+        const html = appData.inbound.map(i => `
+            <tr>
+                <td>${i.date}</td>
+                <td><span class="badge">${i.country}</span></td>
+                <td>${i.wh}</td>
+                <td>${i.sku}</td>
+                <td>${i.name}</td>
+                <td>${i.qty}</td>
+                <td>
+                    <button class="btn btn-sm btn-edit" onclick="openEditModal('inbound', ${i.id})">编辑</button>
+                    <button class="btn btn-sm btn-del" onclick="deleteItem('inbound', ${i.id})">删除</button>
+                </td>
+            </tr>
+        `).join('');
+        document.getElementById('inbound-list').innerHTML = html;
+    }
+
+    function renderOutboundList() {
+        const html = appData.outbound.map(o => `
+            <tr>
+                <td>${o.date}</td>
+                <td>${o.sku}</td>
+                <td>${o.country}-${o.wh}</td>
+                <td>${o.link}</td>
+                <td>${o.qty}</td>
+                <td>
+                    <button class="btn btn-sm btn-edit" onclick="openEditModal('outbound', ${o.id})">编辑</button>
+                    <button class="btn btn-sm btn-del" onclick="deleteItem('outbound', ${o.id})">删除</button>
+                </td>
+            </tr>
+        `).join('');
+        document.getElementById('outbound-list').innerHTML = html;
+    }
+
+    function updateDropdowns() {
+        let skus = [...new Set(appData.inbound.map(i => i.sku))];
+        let links = [...new Set(appData.outbound.map(o => o.link))];
+        document.getElementById('out-sku').innerHTML = '<option value="">请选择SKU...</option>' + skus.map(s => `<option value="${s}">${s}</option>`).join('');
+        document.getElementById('filter-sku').innerHTML = '<option value="all">全部SKU</option>' + skus.map(s => `<option value="${s}">${s}</option>`).join('');
+        document.getElementById('filter-link').innerHTML = '<option value="all">全部渠道</option>' + links.map(l => `<option value="${l}">${l}</option>`).join('');
+    }
+
+    // ========== 图表 ==========
+    function initChart() {
+        const ctx = document.getElementById('salesChart').getContext('2d');
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: [], datasets: [] },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                scales: { y: { beginAtZero: true, title: { display: true, text: '销量' } } } 
+            }
+        });
+    }
+
+    function renderChart() {
+        if(!myChart) return;
+        const skuF = document.getElementById('filter-sku').value;
+        const linkF = document.getElementById('filter-link').value;
+        const days = parseInt(document.getElementById('filter-time').value);
+        
+        const start = new Date(); start.setDate(start.getDate()-days);
+        let data = appData.outbound.filter(o => new Date(o.date) >= start);
+        if(skuF !== 'all') data = data.filter(o => o.sku === skuF);
+        if(linkF !== 'all') data = data.filter(o => o.link === linkF);
+
+        const labels = [...new Set(data.map(d => d.sku))];
+        const links = [...new Set(data.map(d => d.link))];
+        const colors = ['#43a047', '#7cb342', '#aed581', '#fdd835', '#ff7043'];
+
+        const datasets = links.map((link, i) => ({
+            label: link,
+            data: labels.map(sku => data.filter(d => d.sku===sku && d.link===link).reduce((a,b)=>a+b.qty,0)),
+            backgroundColor: colors[i % colors.length],
+            borderRadius: 4
+        }));
+
+        myChart.data.labels = labels.length ? labels : ['暂无数据'];
+        myChart.data.datasets = datasets;
+        myChart.update();
+    }
+
+    // ========== 导航 ==========
+    function switchTab(tab) {
+        document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
+        document.getElementById(`page-${tab}`).classList.add('active');
+        
+        document.querySelectorAll('.nav-btn').forEach((b, i) => b.classList.remove('active'));
+        const map = {stock:0, inbound:1, outbound:2, stats:3};
+        document.querySelectorAll('.nav-btn')[map[tab]].classList.add('active');
+
+        if(tab === 'stats' && !myChart) { initChart(); renderChart(); }
+    }
+
+    // 点击弹窗外部关闭
+    window.onclick = function(event) {
+        const modal = document.getElementById('edit-modal');
+        if (event.target == modal) closeModal();
+    }
+
+    // 页面加载时初始化
+    window.onload = function() {
+        loadData();
+    }
+</script>
+</body>
+</html>
